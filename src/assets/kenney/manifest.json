@@ -1,0 +1,157 @@
+{
+  "source": "https://kenney.nl/assets/top-down-shooter",
+  "archive": "https://kenney.nl/media/pages/assets/top-down-shooter/230204340a-1677694684/kenney_top-down-shooter.zip",
+  "creator": "Kenney Vleugels (Kenney.nl)",
+  "license": "CC0",
+  "retrieved": "2026-10-21",
+  "altered": false,
+  "orientation": "Characters face +X in the original PNGs.",
+  "files": [
+    {
+      "key": "player",
+      "file": "src/assets/kenney/player.png",
+      "original": "PNG/Robot 1/robot1_machine.png",
+      "bytes": 1517,
+      "width": 49,
+      "height": 43,
+      "sha256": "fabfdd249a5c3f7932b37a65c6fd0e262182b01f9bbacd98617cf32e9e3b9a15"
+    },
+    {
+      "key": "engineer",
+      "file": "src/assets/kenney/engineer.png",
+      "original": "PNG/Survivor 1/survivor1_gun.png",
+      "bytes": 1617,
+      "width": 51,
+      "height": 43,
+      "sha256": "b16c1208b37ae354f35871b203b24fbf49c43868df4bdf56877e64491dfd90e0"
+    },
+    {
+      "key": "normal",
+      "file": "src/assets/kenney/normal.png",
+      "original": "PNG/Zombie 1/zoimbie1_hold.png",
+      "bytes": 1623,
+      "width": 35,
+      "height": 43,
+      "sha256": "59beb762744f8ccbc6a4727ebdfadbd1cfd697e836f89c6713fb34d3b96018a4"
+    },
+    {
+      "key": "shooter",
+      "file": "src/assets/kenney/shooter.png",
+      "original": "PNG/Soldier 1/soldier1_machine.png",
+      "bytes": 1529,
+      "width": 52,
+      "height": 43,
+      "sha256": "32df6e8a69bcdc63453782868360d2ca02f86c0579da12d40ed6523a665601eb"
+    },
+    {
+      "key": "lobber",
+      "file": "src/assets/kenney/lobber.png",
+      "original": "PNG/Man Brown/manBrown_hold.png",
+      "bytes": 1519,
+      "width": 35,
+      "height": 43,
+      "sha256": "88f634e0eeda4e0d4f919c2552c6e06b600422a5cf2174f63f372921a20c9ff3"
+    },
+    {
+      "key": "teleporter",
+      "file": "src/assets/kenney/teleporter.png",
+      "original": "PNG/Hitman 1/hitman1_silencer.png",
+      "bytes": 1544,
+      "width": 54,
+      "height": 43,
+      "sha256": "23d30792e0299b747c9edacfc8569e0faf50e3e462575a14ba6b52412eb92ff0"
+    },
+    {
+      "key": "boss",
+      "file": "src/assets/kenney/boss.png",
+      "original": "PNG/Robot 1/robot1_reload.png",
+      "bytes": 1868,
+      "width": 39,
+      "height": 43,
+      "sha256": "df95b6353ecce551e6f9b0adf67157c512a11c1d7f3daacfffbd6f953e62f5fd"
+    },
+    {
+      "key": "chest",
+      "file": "src/assets/kenney/crate.png",
+      "original": "PNG/Tiles/tile_129.png",
+      "bytes": 1288,
+      "width": 64,
+      "height": 64,
+      "sha256": "fb322aec200590e1680a83821c1ee8a2a0906162077fe1a43bf7189c638d55bf",
+      "reuses": "crate",
+      "note": "Resource chests and environment crates intentionally reuse the same unmodified wooden crate PNG."
+    },
+    {
+      "key": "crate",
+      "file": "src/assets/kenney/crate.png",
+      "original": "PNG/Tiles/tile_129.png",
+      "bytes": 1288,
+      "width": 64,
+      "height": 64,
+      "sha256": "fb322aec200590e1680a83821c1ee8a2a0906162077fe1a43bf7189c638d55bf"
+    },
+    {
+      "key": "barrel",
+      "file": "src/assets/kenney/barrel.png",
+      "original": "PNG/Tiles/tile_317.png",
+      "bytes": 2103,
+      "width": 64,
+      "height": 64,
+      "sha256": "b660b0a7bb21a746c101fbf3e8775c14d18fa54826e70b95bdd02a3c2ac690d1"
+    },
+    {
+      "key": "rock",
+      "file": "src/assets/kenney/rock.png",
+      "original": "PNG/Tiles/tile_247.png",
+      "bytes": 1054,
+      "width": 64,
+      "height": 64,
+      "sha256": "193aaf816c5f7386cfaba6be30e448da68d886423e435d7ecedcf6cb09bd1a1d"
+    },
+    {
+      "key": "playerIdle",
+      "file": "src/assets/kenney/playerIdle.png",
+      "original": "PNG/Robot 1/robot1_stand.png",
+      "bytes": 1218,
+      "width": 33,
+      "height": 43,
+      "sha256": "1a307cd6405ade9b1c341eacc4b1234490d6e66305839de86517e2eeeede997c"
+    },
+    {
+      "key": "playerReload",
+      "file": "src/assets/kenney/playerReload.png",
+      "original": "PNG/Robot 1/robot1_reload.png",
+      "bytes": 1868,
+      "width": 39,
+      "height": 43,
+      "sha256": "df95b6353ecce551e6f9b0adf67157c512a11c1d7f3daacfffbd6f953e62f5fd"
+    },
+    {
+      "key": "engineerIdle",
+      "file": "src/assets/kenney/engineerIdle.png",
+      "original": "PNG/Survivor 1/survivor1_stand.png",
+      "bytes": 1322,
+      "width": 35,
+      "height": 43,
+      "sha256": "b589c0daff787b5fe7172656de614ae90dc36d08a762e0bad905c876fdc99af8"
+    },
+    {
+      "key": "normalIdle",
+      "file": "src/assets/kenney/normalIdle.png",
+      "original": "PNG/Zombie 1/zoimbie1_stand.png",
+      "bytes": 1407,
+      "width": 33,
+      "height": 43,
+      "sha256": "215e8442f1272ce4f34c900b78f267fab05165d47358e4c91735e632f64dd981"
+    },
+    {
+      "key": "shooterIdle",
+      "file": "src/assets/kenney/shooterIdle.png",
+      "original": "PNG/Soldier 1/soldier1_stand.png",
+      "bytes": 1279,
+      "width": 36,
+      "height": 43,
+      "sha256": "f3adea431ebe62cb0c74c14d1c217f9ccceb2fc04bc619d1029e27264f4d2cc4"
+    }
+  ]
+}

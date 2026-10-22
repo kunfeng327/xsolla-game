@@ -1,139 +1,80 @@
-import { useId } from 'react';
-import { ArrowRight, Check, ChevronRight, CircleHelp, Crosshair, Cpu, Hexagon, LockKeyhole, Magnet, Radio, Shield, Sparkles, Target, Zap } from 'lucide-react';
-import { RECIPES, getRecipeState } from './model';
-import type { Profile, RecipeId, WeaponId, CharacterId } from './model';
+import { useId, useState } from 'react';
+import type { KeyboardEvent } from 'react';
+import { ArrowRight, ArrowUpRight, Backpack, Check, CheckCircle2, ChevronRight, CircleHelp, Crosshair, Cpu, Hexagon, LockKeyhole, Magnet, Radio, Shield, Sparkles, Target, Wrench, Zap } from 'lucide-react';
+import { MODULES, RECIPES, WEAPON_NAMES, CHARACTER_NAMES, backpackCost, canPay, getRecipeState, getTrackedGoal, moduleCapacity, moduleUpgradeCost, moduleUsage } from './model';
+import type { Profile, RecipeId, TrackId, WeaponId, CharacterId, Materials, ModuleId } from './model';
 import './camp.css';
+import { HANGAR_IMAGE } from './hangar';
 
 type CampProps = {
-  profile: Profile;
-  onBuy: (id: RecipeId) => void;
-  onSelectWeapon: (id: WeaponId) => void;
-  onSelectCharacter: (id: CharacterId) => void;
-  onTrack: (id: RecipeId) => void;
-  onStart: () => void;
-  onOpenHelp: () => void;
+  profile:Profile; onBuy:(id:RecipeId)=>void; onSelectWeapon:(id:WeaponId)=>void; onSelectCharacter:(id:CharacterId)=>void;
+  onTrack:(id:TrackId)=>void; onStart:()=>void; onOpenHelp:()=>void; onToggleModule:(id:ModuleId)=>void;
+  onUnlockModule:(id:ModuleId)=>void; onUpgradeModule:(id:ModuleId)=>void; onExpandBackpack:()=>void;
 };
+type Tab='action'|'equipment'|'workshop';
+const materials=[{key:'alloy',label:'合金',Icon:Hexagon},{key:'chips',label:'芯片',Icon:Cpu},{key:'cores',label:'核心',Icon:Sparkles}] as const;
+const recipeIcons:Record<RecipeId,typeof Shield>={health:Shield,magnet:Magnet,scatter:Zap,drone:Radio,engineer:Cpu,trail:Sparkles};
+const moduleIcons:Record<ModuleId,typeof Shield>={magnet:Magnet,insulation:Shield,fortress:Hexagon,shockwave:Zap,pierce:Crosshair,rescue:Sparkles};
+const weaponInfo:{id:WeaponId;title:string;subtitle:string;Icon:typeof Crosshair}[]=[{id:'pulse',title:'脉冲步枪',subtitle:'稳定精准的自动火力',Icon:Crosshair},{id:'scatter',title:'散射枪',subtitle:'扇形齐射，清理近处包围',Icon:Zap},{id:'drone',title:'环绕无人机',subtitle:'环绕攻击，用走位收割',Icon:Radio}];
+function missing(p:Profile,cost:Materials){const parts=materials.filter(m=>p[m.key]<cost[m.key]).map(m=>`${cost[m.key]-p[m.key]} ${m.label}`);return parts.length?`还差 ${parts.join('、')}`:'材料已齐';}
+function Cost({profile,cost}:{profile:Profile;cost:Materials}){return <div className="camp-cost">{materials.filter(m=>cost[m.key]>0).map(({key,label,Icon})=><span key={key} className={profile[key]>=cost[key]?'is-enough':''}><Icon size={15}/><b>{cost[key]}</b>{label}</span>)}</div>}
+function effect(id:ModuleId,level:number){if(id==='magnet')return `拾取范围 +${25+level*10}%`;if(id==='insulation')return `爆炸减伤 ${30+level*10}%`;if(id==='fortress')return `弹丸减伤 ${25+level*5}%`;if(id==='shockwave')return `冲刺结束击退周围 ${100+level*25} 范围敌人`;if(id==='pierce')return `额外穿透 1 个敌人${level?`，伤害 +${level*8}%`:''}`;return `每局一次致命保护，恢复 ${30+level*10}% 生命`;}
+function Capacity({profile}:{profile:Profile}){const occupied=profile.equippedModules.flatMap(id=>Array.from({length:MODULES.find(m=>m.id===id)!.slots},()=>MODULES.find(m=>m.id===id)!));return <div className="camp-slots" role="meter" aria-label="战术模块容量" aria-valuenow={moduleUsage(profile.equippedModules)} aria-valuemin={0} aria-valuemax={moduleCapacity(profile)}>{Array.from({length:6},(_,i)=>{const item=occupied[i];return <span key={i} className={i>=moduleCapacity(profile)?'is-locked':item?`is-filled rarity-${item.rarity}`:'is-empty'} aria-label={i>=moduleCapacity(profile)?'扩容后开放':item?item.name:'空闲模块格'} title={i>=moduleCapacity(profile)?'扩容后开放':item?item.name:'空闲模块格'}>{i>=moduleCapacity(profile)?<LockKeyhole size={13}/>:item?<Hexagon size={17}/>:<span>+</span>}</span>})}</div>}
 
-const materials = [
-  { key: 'alloy', label: '废合金', Icon: Hexagon },
-  { key: 'chips', label: '战术芯片', Icon: Cpu },
-  { key: 'cores', label: '异常核心', Icon: Sparkles },
-] as const;
-
-const weaponInfo: { id: WeaponId; title: string; subtitle: string; Icon: typeof Crosshair }[] = [
-  { id: 'pulse', title: '脉冲步枪', subtitle: '精准 · 中距离', Icon: Crosshair },
-  { id: 'scatter', title: '散射枪', subtitle: '扇形 · 近距离', Icon: Zap },
-  { id: 'drone', title: '环绕无人机', subtitle: '环绕 · 范围攻击', Icon: Radio },
-];
-
-const recipeIcons: Record<RecipeId, typeof Shield> = { health: Shield, magnet: Magnet, scatter: Zap, drone: Radio, engineer: Cpu, trail: Sparkles };
-
-function Operative({ engineer, trail }: { engineer: boolean; trail: boolean }) {
-  const uid = useId().replace(/:/g, '');
-  const color = engineer ? '#ffcd72' : '#78f8dd';
-  return <svg className="camp-operative" viewBox="0 0 700 390" role="img" aria-label={engineer ? '无人机工程师站在出发平台上' : '枪手站在出发平台上'}>
-    <defs>
-      <radialGradient id={`${uid}-ground`}><stop stopColor={color} stopOpacity=".2" /><stop offset="1" stopColor={color} stopOpacity="0" /></radialGradient>
-      <linearGradient id={`${uid}-armor`} x1="0" x2="1"><stop stopColor="#324954" /><stop offset=".5" stopColor="#6b858f" /><stop offset="1" stopColor="#233944" /></linearGradient>
-      <linearGradient id={`${uid}-visor`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={color} /><stop offset="1" stopColor="#236a72" /></linearGradient>
-      <filter id={`${uid}-glow`}><feGaussianBlur stdDeviation="4" /></filter>
-    </defs>
-    <path d="M0 329 92 282 163 302 221 243 305 277 389 239 482 278 549 250 700 316V390H0Z" fill="#111f29" />
-    <path d="m0 364 108-44 93 23 98-34 97 40 106-19 88 24 110-22v58H0Z" fill="#0e1b24" />
-    <ellipse cx="357" cy="317" rx="212" ry="62" fill={`url(#${uid}-ground)`} />
-    <ellipse cx="357" cy="310" rx="152" ry="38" fill="#142731" stroke="#34535e" strokeWidth="2" />
-    <ellipse cx="357" cy="305" rx="132" ry="30" fill="#192f38" stroke={color} strokeOpacity=".35" strokeDasharray="30 45" strokeWidth="2" />
-    <ellipse cx="357" cy="303" rx="73" ry="17" fill="#0c1d25" stroke="#476570" />
-    <path d="m185 316 17 20m322-20-17 20M309 273l-6-17m107 17 7-17" stroke={color} strokeOpacity=".7" strokeWidth="3" />
-    {trail && <><path d="M339 290c-53-35-63-80-92-97m131 97c62-37 87-78 104-114" fill="none" stroke="#b992ff" strokeWidth="9" opacity=".3" filter={`url(#${uid}-glow)`} /><path d="M339 290c-53-35-63-80-92-97m131 97c62-37 87-78 104-114" fill="none" stroke="#cbb0ff" strokeWidth="2" opacity=".7" /></>}
-    <ellipse cx="355" cy="302" rx="42" ry="10" fill="#050e15" opacity=".8" />
-    <g className="camp-astronaut">
-      <path d="m332 229-9 58 6 12h20l7-64m13-6 15 58-4 12h-21l-7-64" fill="#213742" stroke="#63808a" strokeWidth="2" />
-      <path d="m325 283-2 15h28v-13m13 0v13h26l-6-15" fill="#15242f" stroke="#4b6977" />
-      <path d="m329 170-14 24 7 44 28 10 31-11 8-43-13-24Z" fill={`url(#${uid}-armor)`} stroke="#92aab1" strokeWidth="1.5" />
-      <path d="m334 178 16 13 19-13-3 39-17 12-17-12Z" fill="#172d36" stroke="#395762" />
-      <path d="M341 198h16m-16 7h16" stroke={color} strokeWidth="3" />
-      <path d="m319 178-14 3-14 40 10 10 13-7 13-34m56-12 14 4 15 38-10 11-13-7-14-34" fill="#34515e" stroke="#8aa0aa" strokeWidth="1.5" />
-      <path d="m293 218 8 15 20-8-4-13m84 5-8 17-18-9 4-13" fill="#182b37" stroke="#526e7d" />
-      <path d="M330 154c0-25 12-38 26-38s27 14 27 38l-6 23h-39Z" fill={`url(#${uid}-armor)`} stroke="#94afb5" strokeWidth="2" />
-      <path d="m335 143 40-2-1 19-17 9-20-8Z" fill="#0b2632" />
-      <path d="m339 146 31-1-1 10-13 6-16-6Z" fill={`url(#${uid}-visor)`} />
-      <path d="M342 170h26m-21-48h17" stroke="#bdd7dc" strokeOpacity=".7" strokeWidth="2" />
-      {!engineer && <g transform="rotate(-14 346 216)"><path d="M302 206h82v13h-35l-6 17h-13l1-17h-29Z" fill="#15252d" stroke="#78939c" strokeWidth="1.5" /><path d="M376 208h19v8h-19m-57-9h27v5h-27" fill={color} /></g>}
-      {engineer && <><rect x="328" y="213" width="43" height="23" rx="3" fill="#183542" stroke={color} /><path d="M335 221h12m-12 6h27" stroke={color} strokeWidth="2" /></>}
+function Operative({profile}:{profile:Profile}){
+  const uid=useId().replace(/:/g,''),engineer=profile.selectedCharacter==='engineer',drone=profile.selectedWeapon==='drone',scatter=profile.selectedWeapon==='scatter',color=engineer?'#d7b8ff':'#8ce9dc';
+  return <svg className="camp-operative" viewBox="0 0 520 620" role="img" aria-label={`${CHARACTER_NAMES[profile.selectedCharacter]}，装备${WEAPON_NAMES[profile.selectedWeapon]}`}>
+    <defs><linearGradient id={`${uid}a`} x1="0" x2="1"><stop stopColor="#283a4b"/><stop offset=".45" stopColor="#81969d"/><stop offset=".65" stopColor="#526773"/><stop offset="1" stopColor="#1c2b3c"/></linearGradient><linearGradient id={`${uid}b`} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a4fff0"/><stop offset="1" stopColor="#267983"/></linearGradient><radialGradient id={`${uid}g`}><stop stopColor={color} stopOpacity=".27"/><stop offset="1" stopColor={color} stopOpacity="0"/></radialGradient><filter id={`${uid}blur`}><feGaussianBlur stdDeviation="7"/></filter></defs>
+    <ellipse cx="260" cy="542" rx="230" ry="67" fill={`url(#${uid}g)`}/><ellipse cx="260" cy="540" rx="155" ry="38" fill="#0c1d27" stroke="#47606c" strokeWidth="2"/><ellipse cx="260" cy="533" rx="139" ry="31" fill="#1e333d" stroke={color} strokeOpacity=".4"/><path d="m109 542 16 17m286-17-16 17m-209-56-8-15m167 16 8-15" stroke={color} strokeWidth="4" opacity=".7"/>
+    {profile.equippedModules.includes('shockwave')&&<ellipse cx="260" cy="534" rx="184" ry="45" fill="none" stroke="#a3cafa" strokeDasharray="20 40" opacity=".45"/>}
+    {profile.trail&&<g fill="none" stroke="#b89bfa"><path d="M226 510C111 415 165 300 110 230m190 283c122-79 80-185 130-251" strokeWidth="14" opacity=".2" filter={`url(#${uid}blur)`}/><path d="M226 510C111 415 165 300 110 230m190 283c122-79 80-185 130-251" strokeWidth="2" opacity=".8"/></g>}
+    <ellipse cx="263" cy="530" rx="66" ry="16" fill="#030c13" opacity=".8"/>
+    <g className="camp-operator-body">
+      <path d="m209 333-12 91 5 82 27 6 20-82 11-61 13 62 13 82 29-6 10-81-15-93Z" fill="#1b2c3a" stroke="#70818b" strokeWidth="2"/>
+      <path d="m202 371 39 4-7 46-33-3m81-43 36-4 7 47-34 3" fill={`url(#${uid}a)`} stroke="#7c939c"/>
+      <path d="m202 440 27 4-8 52-18-4m91-48 26-4-3 52-19 4" fill="#314754" stroke="#647c87"/><path d="m204 506-11 24 3 8h44l2-29m44 0 3 29h45l2-8-20-24" fill="#162631" stroke="#73828a" strokeWidth="2"/><path d="M196 531h41m55 0h39" stroke={color} strokeWidth="2" opacity=".6"/>
+      <path d="m196 218-24 42 18 95 43 17h55l41-18 17-93-28-43Z" fill={`url(#${uid}a)`} stroke="#9db0b4" strokeWidth="2"/>
+      <path d="m205 227 55 24 54-24-8 75-46 23-46-23Z" fill="#233d47" stroke="#65858d" strokeWidth="2"/><path d="m225 249 34 13 35-13-4 38-31 14-29-14Z" fill="#152c37"/><rect x="242" y="270" width="34" height="9" rx="3" fill={color}/><path d="M223 309h73m-68 10h63" stroke="#88a5ac" opacity=".65"/>
+      <path d="m190 233-29 12-21 66 16 23 30-9 22-64m112-28 28 12 24 66-16 24-28-10-23-65" fill="#405562" stroke="#8fa1aa" strokeWidth="2"/>
+      <path d="m151 285 35 10-8 39-30 9-16-18m204-30 31-10 19 40-15 19-29-10" fill="#223844" stroke="#78939d" strokeWidth="2"/><path d="m158 257 17-8m167 0 17 9" stroke={color} strokeWidth="5"/>
+      <path d="m211 149 6-36 25-24h35l29 26 8 39-6 55-31 22h-39l-28-23Z" fill={`url(#${uid}a)`} stroke="#a2b3b7" strokeWidth="2"/><path d="m215 148 92-1-5 44-39 21-40-19Z" fill="#102734" stroke="#426976" strokeWidth="2"/><path d="m224 153 74-1-3 31-32 17-32-17Z" fill={`url(#${uid}b)`}/><path d="m232 159 55-1-1 5-51 2" stroke="#e4fff8" strokeWidth="3" opacity=".7"/><path d="M239 101h38m-43 112h53" stroke="#becbc9" strokeWidth="3" opacity=".7"/><rect x="204" y="159" width="11" height="32" rx="3" fill="#2f4653" stroke="#82949b"/><rect x="307" y="159" width="12" height="32" rx="3" fill="#2f4653" stroke="#82949b"/>
+      <path d="m198 338 20 8h82l20-9-5 23-24 10h-65l-24-11Z" fill="#182b38" stroke="#73909b"/><rect x="248" y="345" width="24" height="20" rx="3" fill="#b6c8c5"/><rect x="254" y="351" width="12" height="7" fill="#2f6164"/>
+      {profile.equippedModules.includes('insulation')&&<g><rect x="179" y="268" width="16" height="23" rx="2" fill="#d7b37c"/><path d="m184 273 6 11m-6 0 6-11" stroke="#344550" strokeWidth="2"/></g>}
+      {profile.equippedModules.includes('rescue')&&<g><rect x="300" y="311" width="24" height="22" rx="3" fill="#e1c788"/><path d="M312 316v12m-6-6h12" stroke="#3a4550" strokeWidth="4"/></g>}
+      {drone||engineer?<g transform="rotate(-13 260 309)"><rect x="206" y="289" width="113" height="45" rx="5" fill="#152d3a" stroke="#87b8c2" strokeWidth="2"/><path d="M220 302h40m-40 10h73m-73 10h50" stroke={color} strokeWidth="3"/><circle cx="300" cy="305" r="5" fill={color}/></g>:<g transform="rotate(-14 264 307)"><path d={scatter?'M147 294h199v31h-65l-10 32h-27l3-32H147Z':'M145 294h191v25h-64l-10 35h-24l3-35h-96Z'} fill="#182b37" stroke="#9caeb3" strokeWidth="2"/>{scatter?<><rect x="331" y="291" width="42" height="11" rx="2" fill="#627b85"/><rect x="331" y="306" width="42" height="11" rx="2" fill="#627b85"/><path d="M357 294h17m-17 15h17" stroke="#ffd28d" strokeWidth="3"/></>:<><rect x="328" y="299" width="55" height="13" fill="#56727f"/><path d="M365 302h19m-194-3h70" stroke={color} strokeWidth="4"/></>}<path d="m193 319 23 27 21-2 4-25m71-4 13 21 24-10-5-11" fill="#344c59" stroke="#7d949c"/></g>}
     </g>
-    {engineer && <g className="camp-companion"><ellipse cx="451" cy="156" rx="37" ry="9" fill={color} opacity=".12" /><path d="m424 149 15-10h27l15 10-15 12h-27Z" fill="#2f4b55" stroke="#a2b0b0" /><rect x="443" y="145" width="17" height="9" rx="3" fill={color} /><path d="M435 165v12m30-12v12" stroke={color} opacity=".6" strokeWidth="3" /></g>}
-    <g fill="#4d6d77" opacity=".8"><path d="m129 269 25-8 9 13-30 7Z" /><path d="m521 291 19-14 23 9-8 12Z" /><path d="m571 322 16-9 19 13-20 5Z" /></g>
-    <path d="M91 181v99m-8-84h17m-9-14 7 12" stroke="#496a77" strokeWidth="2" /><circle cx="91" cy="178" r="3" fill={color} />
-  </svg>;
+    {profile.equippedModules.includes('fortress')&&<ellipse cx="262" cy="320" rx="126" ry="222" fill="#7ca8ff05" stroke="#9dc9f9" strokeWidth="2" strokeDasharray="30 45" opacity=".45"/>}
+    {(drone||engineer)&&Array.from({length:drone?3:1},(_,i)=><g key={i} className={`camp-drone camp-drone-${i}`} transform={`translate(${i===0?388:i===1?113:403} ${i===0?230:i===1?355:414})`}><ellipse cx="0" cy="0" rx="44" ry="14" fill={color} opacity=".1"/><path d="m-32-8 20-12h25L35-8 15 10h-29Z" fill="#334b58" stroke="#8ea9b0" strokeWidth="2"/><rect x="-9" y="-8" width="20" height="9" rx="3" fill={color}/><path d="M-19 15v11m40-11v11" stroke={color} strokeWidth="3"/></g>)}
+  </svg>
 }
+function RewardPreview({id}:{id:TrackId}){const scatter=id==='scatter',drone=id==='drone'||id==='engineer';return <div className={`camp-reward-preview ${scatter?'is-scatter':''}`} aria-label={scatter?'散射枪扇形齐射示意':drone?'环绕无人机能力示意':'成长能力示意'}><svg viewBox="0 0 260 92" aria-hidden="true"><path d="M0 46h260M130 0v92" stroke="currentColor" opacity=".06"/><circle cx="57" cy="46" r="17" fill="currentColor" opacity=".13"/><path d="M47 38h22v16H47Z" fill="currentColor"/>{scatter?[-25,-12,0,12,25].map((angle,i)=><g key={i} transform={`rotate(${angle} 68 46)`}><path d="M84 46h83" stroke="currentColor" strokeWidth="2" opacity=".2"/><rect className="camp-preview-round" x={112+i%2*16} y="43" width="18" height="5" rx="2" fill="currentColor" style={{animationDelay:`${i*.12}s`}}/></g>):drone?<><ellipse cx="132" cy="46" rx="63" ry="29" fill="none" stroke="currentColor" strokeDasharray="4 7"/>{[0,120,240].map(a=><g key={a} transform={`translate(${132+Math.cos(a*Math.PI/180)*63} ${46+Math.sin(a*Math.PI/180)*29})`}><path d="m-8 0 8-6 8 6-8 6Z" fill="currentColor"/></g>)}</>:<><path d="m110 46 23-24 23 24-23 24Z" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M133 32v28m-14-14h28" stroke="currentColor" strokeWidth="3"/><path d="M177 46h49m-9-8 9 8-9 8" fill="none" stroke="currentColor" strokeWidth="2"/></>}</svg><span>能力预览</span></div>}
 
-export default function Camp({ profile, onBuy, onSelectWeapon, onSelectCharacter, onTrack, onStart, onOpenHelp }: CampProps) {
-  const target = RECIPES.find(item => item.id === profile.tracked) || RECIPES[2];
-  const targetState = getRecipeState(profile, target.id);
-  const completed = targetState.maxed || targetState.owned && !target.maxLevel;
-  return <div className="camp">
-    <header className="camp-header">
-      <div className="camp-brand"><span className="camp-brand-mark"><Crosshair size={26} /></span><div><strong>星域突围<span>STARBREAK</span></strong><small>边境营地 · OUTPOST 07</small></div></div>
-      <div className="camp-wallet" aria-label="仓库物资">{materials.map(({ key, label, Icon }) => <div className={`camp-resource camp-resource-${key}`} key={key}><Icon size={19} /><span><small>{label}</small><b>{profile[key].toLocaleString()}</b></span></div>)}</div>
-      <button className="camp-help" onClick={onOpenHelp}><CircleHelp size={18} /><span>行动指南</span></button>
-    </header>
-
+export default function Camp(props:CampProps){
+  const {profile,onBuy,onSelectWeapon,onSelectCharacter,onTrack,onStart,onOpenHelp,onToggleModule,onUnlockModule,onUpgradeModule,onExpandBackpack}=props;
+  const [tab,setTab]=useState<Tab>('action');const first=profile.stats.runs===0,goal=getTrackedGoal(profile),used=moduleUsage(profile.equippedModules),capacity=moduleCapacity(profile),expansion=backpackCost(profile);
+  function track(id:TrackId){onTrack(id);setTab('action')}
+  function redeemGoal(){if(goal.kind==='bag')onExpandBackpack();else if(goal.kind==='module')onUnlockModule(goal.id.slice(7) as ModuleId);else onBuy(goal.id as RecipeId)}
+  function tabKeyboard(event:KeyboardEvent<HTMLElement>){const order:Tab[]=['action','equipment','workshop'];const index=order.indexOf(tab);let next:Tab;if(event.key==='ArrowRight')next=order[(index+1)%3];else if(event.key==='ArrowLeft')next=order[(index+2)%3];else if(event.key==='Home')next='action';else if(event.key==='End')next='workshop';else return;event.preventDefault();setTab(next);event.currentTarget.querySelector<HTMLButtonElement>(`#camp-tab-${next}`)?.focus();}
+  return <div className="camp camp-v3">
+    <header className="camp-header"><div className="camp-brand"><span className="camp-brand-mark"><Crosshair size={28}/></span><div><strong>星域突围</strong><small>STARBREAK / 边境营地 07</small></div></div><nav className="camp-nav" role="tablist" aria-label="营地功能" onKeyDown={tabKeyboard}>{([{id:'action',label:'行动',Icon:Target},{id:'equipment',label:'装备',Icon:Backpack},{id:'workshop',label:'工坊',Icon:Wrench}] as const).map(({id,label,Icon})=><button key={id} type="button" id={`camp-tab-${id}`} role="tab" aria-controls={`camp-panel-${id}`} aria-selected={tab===id} tabIndex={tab===id?0:-1} onClick={()=>setTab(id)}><Icon size={17}/>{label}</button>)}</nav><div className="camp-wallet" aria-label="仓库物资">{materials.map(({key,label,Icon})=><div className={`camp-resource resource-${key}`} key={key}><Icon size={17}/><span><small>{label}</small><b>{profile[key].toLocaleString()}</b></span></div>)}</div><button className="camp-help" onClick={onOpenHelp} aria-label="查看行动指南"><CircleHelp size={21}/><span>指南</span></button></header>
     <main className="camp-main">
-      <div className="camp-topline"><span><i /> 营地通讯正常</span><span>本地存档已启用 <span className="camp-topline-divider">/</span> FRONTIER SECTOR 07</span></div>
-      <section className="camp-mission">
-        <div className="camp-stage">
-          <div className="camp-stage-stars" />
-          <div className="camp-stage-orbit" />
-          <div className="camp-stage-heading"><span className="camp-eyebrow">EXTRACTION PROTOCOL</span><h1>进入未知。<br /><em>带回未来。</em></h1><p>180 秒撤离行动</p></div>
-          <div className="camp-stage-coordinate">XR-07<br /><span>28° 19′ N / 112° 48′ E</span></div>
-          <Operative engineer={profile.selectedCharacter === 'engineer'} trail={profile.trail} />
-          <div className="camp-operative-label"><span>已部署干员</span><strong>{profile.selectedCharacter === 'engineer' ? '无人机工程师' : '先锋枪手'}</strong><small>{profile.selectedCharacter === 'engineer' ? 'DRONE ENGINEER / 战术协同' : 'FRONTIER GUNNER / 稳定火力'}</small></div>
-          <div className="camp-stage-badge"><Shield size={15} /> 装备永久保留</div>
+      <section id="camp-panel-action" role="tabpanel" aria-labelledby="camp-tab-action" hidden={tab!=='action'}>
+        <div className="camp-statusline"><span><i/>营地整备完成</span><span>无限探索 · 主动撤离 · 单人行动</span></div>
+        <div className="camp-home-grid">
+          <aside className="camp-loadout-summary"><div className="camp-panel-kicker">出战配置 <span>已就绪</span></div><div className="camp-current-weapon"><Crosshair size={25}/><div><small>当前武器</small><strong>{WEAPON_NAMES[profile.selectedWeapon]}</strong></div></div><p className="camp-loadout-description">{weaponInfo.find(w=>w.id===profile.selectedWeapon)!.subtitle}</p><div className="camp-summary-divider"/><div className="camp-slot-heading"><Backpack size={17}/><span>战术背包</span><b>{used}<small> / {capacity} 格</small></b></div><Capacity profile={profile}/><div className="camp-selected-modules">{profile.equippedModules.length?profile.equippedModules.map(id=>{const item=MODULES.find(m=>m.id===id)!,Icon=moduleIcons[id];return <div key={id} className={`rarity-${item.rarity}`}><Icon size={18}/><span><strong>{item.name}</strong><small>{effect(id,profile.moduleLevels[id]??0)}</small></span></div>}):<p>未装配模块，基础武器仍可直接出战。</p>}</div><button className="camp-outline-button" onClick={()=>setTab('equipment')}>调整装备 <ChevronRight size={17}/></button><div className="camp-preserved"><Shield size={15}/><span>已解锁装备与模块永久保留</span></div></aside>
+          <section className="camp-scene" aria-label="干员出发机库"><img className="camp-scene-background" src={HANGAR_IMAGE} alt="青色灯光照亮的边境机库与远处矿区"/><div className="camp-scene-architecture"/><div className="camp-scene-floor"/><div className="camp-scene-scan"/><div className="camp-scene-title"><span>边境行动 / FRONTIER OPERATIONS</span><h1>整装。<br/>向未知出发。</h1></div><div className="camp-scene-location"><span>异常矿区</span><b>07</b></div><Operative profile={profile}/><div className="camp-operator-name"><span className="camp-ready-dot"/><div><strong>{CHARACTER_NAMES[profile.selectedCharacter]}</strong><small>{profile.selectedWeapon==='scatter'?'近距离突破':profile.selectedWeapon==='drone'?'环绕战术协同':'稳定火力 · 自动攻击'}</small></div></div><div className="camp-scene-note"><Radio size={15}/>接应站在线</div></section>
+          <aside className="camp-mission-card"><div className="camp-panel-kicker">{goal.canAfford?'营地成长':first?'首次边境行动':'下一次行动'}<span className={goal.canAfford?'is-ready':''}>{goal.complete?'已达成':goal.canAfford?'可以兑换':'准备出发'}</span></div><h2>{first?'带回你的第一份收获。':'带着目标，再出发。'}</h2><p className="camp-mission-copy">{first?'靠近金色资源仓，按 E 启动。清理两个资源仓后，活着带回物资。':'完成资源事件，选择继续深入，或带着收获主动撤离。'}</p><div className="camp-goal-header"><Target size={17}/><span>{goal.complete?'追踪目标已完成':'本次成长目标'}</span></div><div className="camp-goal-title"><h3>{goal.title}</h3><button className="camp-text-button" onClick={()=>setTab('workshop')} aria-label="更换成长目标"><ArrowUpRight size={16}/>更换</button></div><RewardPreview id={goal.id}/><p className="camp-goal-effect">{goal.description}</p><div className="camp-goal-progress">{materials.filter(m=>goal.cost[m.key]>0).map(({key,label,Icon})=><div key={key}><div><span><Icon size={14}/>{label}</span><b>{Math.min(profile[key],goal.cost[key])}<small> / {goal.cost[key]}</small></b></div><div className="camp-progress"><i style={{width:`${Math.min(100,profile[key]/goal.cost[key]*100)}%`}}/></div></div>)}</div><p className={`camp-missing ${goal.canAfford?'is-ready':''}`}>{goal.complete?'到工坊选择下一个目标':missing(profile,goal.cost)}</p>{goal.canAfford&&<button className="camp-goal-redeem" onClick={redeemGoal}><Sparkles size={17}/>{goal.kind==='bag'?'立即扩容':goal.kind==='module'?'解锁模块':'兑换并应用'}<ArrowRight size={17}/></button>}<div className="camp-launch-zone"><div><CheckCircle2 size={16}/>{first?'基础装备已配置，可直接出发':'当前配置已保存，出发即生效'}</div><button className="camp-launch" onClick={onStart}><Crosshair size={21}/><span>{first?'首次出击':'进入异常矿区'}</span><ArrowRight size={22}/></button><span className="camp-free-entry">无需入场费 · 没有整局倒计时</span></div></aside>
         </div>
-        <aside className="camp-briefing">
-          <div className="camp-mission-title"><span className="camp-eyebrow">下一次行动</span><span className="camp-online"><i /> 单人行动</span></div>
-          <h2>异常矿区 <span>07</span></h2><p className="camp-briefing-copy">搜集物资，判断风险。<br />只有成功撤离，才能带回稀有战利品。</p>
-          <div className="camp-timeline"><div><b>00:00</b><span>搜集 / 成长</span></div><ChevronRight size={14} /><div><b>01:30</b><span>撤离门开启</span></div><ChevronRight size={14} /><div className="camp-timeline-danger"><b>02:00</b><span>Boss 降临</span></div></div>
-          <div className="camp-objective">
-            <div className="camp-objective-label"><Target size={15} /> 当前追踪目标{completed && <span>已达成</span>}</div>
-            <div className="camp-objective-name"><strong>{target.title}</strong><small>{target.maxLevel ? `Lv.${targetState.level} / ${target.maxLevel}` : completed ? '已解锁' : '待解锁'}</small></div>
-            <div className="camp-objective-resources">{materials.filter(({ key }) => targetState.cost[key] > 0).map(({ key, label, Icon }) => <div key={key}><div><span><Icon size={12} />{label}</span><b className={profile[key] >= targetState.cost[key] ? 'camp-enough' : ''}>{profile[key]}<small> / {targetState.cost[key]}</small></b></div><div className="camp-progress"><i style={{ width: `${Math.min(100, profile[key] / targetState.cost[key] * 100)}%` }} /></div></div>)}</div>
-            {targetState.canAfford && !completed && <button className="camp-target-redeem" onClick={() => onBuy(target.id)}>材料已齐，立即兑换 <ArrowRight size={14} /></button>}
-          </div>
-          <button className="camp-launch" onClick={onStart}><span><Crosshair size={21} />开始行动</span><ArrowRight size={22} /></button>
-          <p className="camp-control-hint"><kbd>W A S D</kbd> 移动 <span>·</span> <kbd>空格</kbd> 冲刺 <span>·</span> 自动攻击</p>
-        </aside>
+        <div className="camp-home-bottom"><div className="camp-action-path"><span><b>01</b>搜资源仓</span><ChevronRight size={15}/><span><b>02</b>{goal.cost.cores>0?'挑战守卫并撤离':'接应站撤离'}</span><ChevronRight size={15}/><span><b>03</b>回营地解锁</span></div><div className="camp-controls"><span><kbd>WASD</kbd>移动</span><span><kbd>空格</kbd>冲刺</span><span><kbd>E</kbd>交互</span><span>自动攻击</span></div></div>
       </section>
-
-      <section className="camp-loadout-section">
-        <div className="camp-section-title"><div><span className="camp-section-index">01</span><h2>出发配置</h2><p>选择下一局的起始装备</p></div><span className="camp-section-meta">LOADOUT</span></div>
-        <div className="camp-loadout-grid">
-          <div className="camp-loadout-group"><span className="camp-group-label">起始武器</span><div className="camp-weapon-options">{weaponInfo.map(({ id, title, subtitle, Icon }) => {
-            const owned = profile.weapons.includes(id), selected = profile.selectedWeapon === id;
-            return <button key={id} className={`camp-equipment ${selected ? 'is-selected' : ''} ${!owned ? 'is-locked' : ''}`} aria-pressed={selected} onClick={() => owned ? onSelectWeapon(id) : onTrack(id as RecipeId)}><Icon size={22} /><span><strong>{title}</strong><small>{subtitle}</small></span>{selected ? <Check size={15} /> : !owned ? <LockKeyhole size={14} /> : null}</button>;
-          })}</div></div>
-          <div className="camp-loadout-group camp-character-group"><span className="camp-group-label">行动干员</span><div className="camp-character-options">{([{ id: 'gunner', label: '先锋枪手' }, { id: 'engineer', label: '工程师' }] as const).map(({ id, label }) => {
-            const owned = profile.characters.includes(id), selected = profile.selectedCharacter === id;
-            return <button key={id} className={`camp-character ${selected ? 'is-selected' : ''} ${!owned ? 'is-locked' : ''}`} aria-pressed={selected} onClick={() => owned ? onSelectCharacter(id) : onTrack('engineer')}>{id === 'gunner' ? <Crosshair size={19} /> : <Cpu size={19} />}<span>{label}</span>{selected ? <Check size={14} /> : !owned ? <LockKeyhole size={13} /> : null}</button>;
-          })}</div></div>
-        </div>
+      <section id="camp-panel-equipment" className="camp-tab-section" role="tabpanel" aria-labelledby="camp-tab-equipment" hidden={tab!=='equipment'}>
+        <div className="camp-section-heading"><div><span className="camp-eyebrow">行动之前，选择打法</span><h1>装备整备</h1><p>模块占格子，战利品独立存放。所有配置在下一局生效。</p></div><button className="camp-outline-button" onClick={()=>setTab('action')}>返回行动 <ArrowRight size={17}/></button></div>
+        <div className="camp-equipment-top"><div><h2>起始武器</h2><div className="camp-weapon-options">{weaponInfo.map(({id,title,subtitle,Icon})=>{const owned=profile.weapons.includes(id),selected=profile.selectedWeapon===id;return <button className={`camp-weapon-option ${selected?'is-selected':''}`} key={id} aria-pressed={selected} onClick={()=>owned?onSelectWeapon(id):track(id as RecipeId)}><Icon size={23}/><span><strong>{title}</strong><small>{subtitle}</small></span>{selected?<Check size={17}/>:!owned?<LockKeyhole size={17}/>:null}</button>})}</div></div><div><h2>行动干员</h2><div className="camp-character-options">{([{id:'gunner',label:'先锋枪手',description:'稳定火力，基础生命110',Icon:Crosshair},{id:'engineer',label:'无人机工程师',description:'额外无人机与20初始护盾',Icon:Cpu}] as const).map(({id,label,description,Icon})=>{const selected=profile.selectedCharacter===id,owned=profile.characters.includes(id);return <button key={id} className={`camp-character-option ${selected?'is-selected':''}`} aria-pressed={selected} onClick={()=>owned?onSelectCharacter(id):track('engineer')}><Icon size={23}/><span><strong>{label}</strong><small>{description}</small></span>{selected?<Check size={17}/>:!owned?<LockKeyhole size={17}/>:null}</button>})}</div></div></div>
+        <div className="camp-pack-panel"><div><div className="camp-slot-heading"><Backpack size={21}/><span>出战容量</span><b>{used}<small> / {capacity} 格</small></b></div><p>绿 / 紫 / 金模块占 1 / 2 / 3 格，已拥有模块可自由换装。</p></div><Capacity profile={profile}/><div className="camp-expansion">{profile.bagLevel<2?<><Cost profile={profile} cost={expansion}/><small>{missing(profile,expansion)}</small><div><button className="camp-outline-button" onClick={()=>track('bag')}><Target size={15}/>追踪扩容</button><button className="camp-buy" disabled={!canPay(profile,expansion)} onClick={onExpandBackpack}>扩容到 {capacity+1} 格</button></div></>:<span className="camp-complete-label"><CheckCircle2 size={17}/>已达到六格容量</span>}</div></div>
+        <div className="camp-module-grid">{MODULES.map(item=>{const owned=profile.modules.includes(item.id),equipped=profile.equippedModules.includes(item.id),level=profile.moduleLevels[item.id]??0,upgrade=moduleUpgradeCost(profile,item.id),fits=used+item.slots<=capacity,Icon=moduleIcons[item.id];return <article key={item.id} className={`camp-module rarity-${item.rarity} ${equipped?'is-equipped':''}`}><div className="camp-module-heading"><span className="camp-module-icon"><Icon size={25}/></span><div><span>{item.rarity==='green'?'标准':item.rarity==='purple'?'进阶':'核心'}模块 · {item.slots} 格</span><h3>{item.name}</h3></div><b>{owned?`${level}/2 强化`:'未解锁'}</b></div><p className="camp-module-effect">{effect(item.id,level)}</p>{owned?<><button className="camp-equip-button" aria-pressed={equipped} disabled={!equipped&&!fits} onClick={()=>onToggleModule(item.id)}>{equipped?<><Check size={17}/>已装配 · 卸下</>:fits?'装入出战背包':`需要 ${item.slots} 格，请先卸下其他模块`}</button><div className="camp-module-footer">{level<2?<><small>强化后：{effect(item.id,level+1)}</small><Cost cost={upgrade} profile={profile}/><div><span>{missing(profile,upgrade)}</span><button className="camp-buy" disabled={!canPay(profile,upgrade)} onClick={()=>onUpgradeModule(item.id)}>强化</button></div></>:<p className="camp-complete-label"><CheckCircle2 size={16}/>强化已满 · 占格不变</p>}</div></>:<div className="camp-module-footer"><Cost cost={item.cost} profile={profile}/><small>{missing(profile,item.cost)}</small><div><button className="camp-text-button" onClick={()=>track(`module:${item.id}`)}><Target size={15}/>追踪解锁</button><button className="camp-buy" disabled={!canPay(profile,item.cost)} onClick={()=>onUnlockModule(item.id)}>永久解锁</button></div></div>}</article>})}</div>
       </section>
-
-      <section className="camp-workshop-section">
-        <div className="camp-section-title"><div><span className="camp-section-index">02</span><h2>物资兑换</h2><p>把这次收获，变成下一次的优势</p></div><span className="camp-section-meta">WORKSHOP / 06</span></div>
-        <div className="camp-recipes">{RECIPES.map(recipe => {
-          const state = getRecipeState(profile, recipe.id), Icon = recipeIcons[recipe.id];
-          const done = state.maxed || state.owned && !recipe.maxLevel;
-          return <article className={`camp-recipe ${profile.tracked === recipe.id ? 'is-tracked' : ''} ${done ? 'is-completed' : ''}`} key={recipe.id}>
-            <div className="camp-recipe-top"><span className={`camp-recipe-icon camp-icon-${recipe.id}`}><Icon size={22} /></span><button className="camp-track" aria-label={`${profile.tracked === recipe.id ? '正在追踪' : '追踪'}${recipe.title}`} aria-pressed={profile.tracked === recipe.id} onClick={() => onTrack(recipe.id)}><Target size={14} />{profile.tracked === recipe.id ? '已追踪' : '追踪'}</button></div>
-            <div className="camp-recipe-title"><h3>{recipe.title}</h3>{recipe.maxLevel && <span>Lv.{state.level}<small> / {recipe.maxLevel}</small></span>}</div>
-            <p>{recipe.description}</p>
-            <div className="camp-recipe-bottom"><div className="camp-cost">{done ? <span className="camp-owned"><Check size={14} />{recipe.maxLevel ? '已满级' : '永久解锁'}</span> : materials.filter(({ key }) => state.cost[key] > 0).map(({ key, label, Icon: MaterialIcon }) => <span key={key} className={profile[key] < state.cost[key] ? 'is-short' : ''} title={`${label} ${profile[key]} / ${state.cost[key]}`}><MaterialIcon size={13} />{state.cost[key]}</span>)}</div><button className="camp-buy" disabled={done || !state.canAfford} onClick={() => onBuy(recipe.id)}>{done ? <Check size={15} /> : recipe.maxLevel ? '强化' : '兑换'}{!done && <ChevronRight size={14} />}</button></div>
-          </article>;
-        })}</div>
-      </section>
-      <footer className="camp-footer"><span><span className="camp-footer-dot" /> 营地记录 <b>{profile.stats.runs}</b> 次行动 <span>/</span> <b>{profile.stats.extracts}</b> 次成功撤离 <span>/</span> <b>{profile.stats.bossKills}</b> 次击败 Boss</span><span>FRONTEND PLAYTEST <span>·</span> 进度保存在当前浏览器</span></footer>
+      <section id="camp-panel-workshop" className="camp-tab-section" role="tabpanel" aria-labelledby="camp-tab-workshop" hidden={tab!=='workshop'}><div className="camp-section-heading"><div><span className="camp-eyebrow">把收获，变成下一次的优势</span><h1>营地工坊</h1><p>选择一个成长目标，行动时就知道该搜集什么。</p></div><button className="camp-outline-button" onClick={()=>setTab('action')}>返回行动 <ArrowRight size={17}/></button></div><div className="camp-workshop-shortcuts"><button onClick={()=>{setTab('equipment')}}><Backpack size={22}/><span><strong>模块与背包扩容</strong><small>尝试穿甲、防御和冲刺搭配</small></span><ArrowRight size={20}/></button><div><Shield size={18}/><span>解锁与强化永久保留，下一局生效。</span></div></div><div className="camp-recipes">{RECIPES.map(recipe=>{const state=getRecipeState(profile,recipe.id),Icon=recipeIcons[recipe.id];return <article key={recipe.id} className={`camp-recipe ${profile.tracked===recipe.id?'is-tracked':''}`}><div className="camp-recipe-head"><span><Icon size={26}/></span><button className="camp-text-button" onClick={()=>track(recipe.id)}><Target size={15}/>{profile.tracked===recipe.id?'当前目标':'设为目标'}</button></div><div className="camp-recipe-title"><h2>{recipe.title}</h2>{recipe.maxLevel&&<span>{state.level}/{recipe.maxLevel} 强化</span>}</div><p>{recipe.description}</p><RewardPreview id={recipe.id}/><div className="camp-recipe-footer">{state.maxed?<span className="camp-complete-label"><CheckCircle2 size={17}/>{recipe.maxLevel?'已满级':'永久解锁'}</span>:<><Cost cost={state.cost} profile={profile}/><div><small>{missing(profile,state.cost)}</small><button className="camp-buy" disabled={!state.canAfford} onClick={()=>onBuy(recipe.id)}>{recipe.maxLevel?'强化':'解锁并装备'}<ChevronRight size={16}/></button></div></>}</div></article>})}</div></section>
+      <footer className="camp-footer"><span><i/>营地记录 <b>{profile.stats.runs}</b> 次行动 · <b>{profile.stats.extracts}</b> 次撤离 · <b>{profile.stats.bossKills}</b> 次击败守卫</span><span>本地存档已启用 · 前端试玩原型</span></footer>
     </main>
-  </div>;
+  </div>
 }
