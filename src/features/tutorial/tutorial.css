@@ -1,0 +1,136 @@
+.tutorial-shade {
+  z-index: 120;
+  padding: 20px;
+}
+.tutorial-dialog {
+  width: min(620px, 100%);
+  max-height: 90dvh;
+  overflow-y: auto;
+  color: #e2e9ed;
+  border: 1px solid #9b8556;
+  background: radial-gradient(ellipse at 80% 0%, #23486177, transparent 65%), #0c1b2b;
+  box-shadow: 0 30px 120px #000a;
+}
+.tutorial-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 22px;
+  border-bottom: 1px solid #a7b9cb22;
+  color: #b6c8d5;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+.tutorial-topline span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tutorial-topline button {
+  background: none;
+  border: 0;
+  color: #c4d1dd;
+  min-height: 44px;
+  min-width: 44px;
+}
+.tutorial-content {
+  padding: 25px 34px 14px;
+}
+.tutorial-emblem {
+  color: #dcc391;
+  margin-bottom: 22px;
+}
+.tutorial-content h2 {
+  font-size: clamp(22px, 4vw, 29px);
+  line-height: 1.5;
+  margin: 14px 0;
+  font-weight: 500;
+}
+.tutorial-content p {
+  color: #aabecd;
+  font-size: 14px;
+  line-height: 1.9;
+}
+.tutorial-orders {
+  padding: 18px;
+  background: #5886a510;
+  border-left: 2px solid #d0b47c;
+  margin-top: 22px;
+}
+.tutorial-orders > span {
+  color: #d9c18f;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.tutorial-orders p {
+  color: #d9e3eb;
+  margin: 10px 0 0;
+}
+.tutorial-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+.tutorial-keys kbd {
+  border: 1px solid #627b8e66;
+  padding: 7px 10px;
+  color: #a9c3d9;
+  font-family: inherit;
+  font-size: 11px;
+}
+.tutorial-progress {
+  display: flex;
+  gap: 5px;
+  margin: 10px 34px 22px;
+}
+.tutorial-progress i {
+  height: 2px;
+  background: #344453;
+  flex: 1;
+}
+.tutorial-progress i.active {
+  background: #d2b77e;
+}
+.tutorial-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 24px;
+}
+.tutorial-footer > span {
+  color: #859bab;
+  font-size: 12px;
+}
+.tutorial-footer button {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+}
+.tutorial-skip {
+  display: block;
+  margin: 18px auto;
+  min-height: 44px;
+  padding: 5px 12px;
+  background: none;
+  border: 0;
+  color: #a5b7c4;
+  font-size: 12px;
+}
+@media (max-width: 500px) {
+  .tutorial-content {
+    padding: 20px;
+  }
+  .tutorial-footer {
+    padding: 0 16px;
+  }
+  .tutorial-footer button {
+    padding: 10px;
+    font-size: 12px;
+  }
+  .tutorial-emblem {
+    display: none;
+  }
+}

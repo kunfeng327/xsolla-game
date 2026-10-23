@@ -12,17 +12,21 @@ import BattleMenu from './BattleMenu';
 import ContractDialog from './ContractDialog';
 import UpgradeDialog from './UpgradeDialog';
 import './battle.css';
-import type { Goal } from './battlePresentation';
+import TutorialDialog from '../tutorial/TutorialDialog';
+import { completeTutorial, needsTutorial } from '../../storage/tutorialStorage';
+import type { Goal, Menu } from './battlePresentation';
 export default function BattlePage({
   profile,
   onFinish,
   onHelp,
   helpOpen,
+  onExit,
 }: {
   profile: Profile;
   onFinish: (r: GameResult) => void;
   onHelp: () => void;
   helpOpen: boolean;
+  onExit: () => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     engine = useRef<StarbreakGame | null>(null),
@@ -31,11 +35,12 @@ export default function BattlePage({
   const [hud, setHud] = useState<GameHud | null>(null),
     [choices, setChoices] = useState<UpgradeChoice[] | null>(null),
     [contracts, setContracts] = useState<ContractChoice[] | null>(null);
-  const [menu, setMenu] = useState<'pause' | 'settings' | 'effects' | null>(null),
+  const [menu, setMenu] = useState<Menu>(null),
     [speed, setSpeed] = useState(1),
     [fullError, setFullError] = useState(''),
     [prefs, setPrefs] = useState<Preferences>(loadPreferences),
     [goal, setGoal] = useState<Goal>('resource');
+  const [tutorial, setTutorial] = useState(needsTutorial);
   const input = useRef(new Set<string>());
   useEffect(() => {
     if (!canvas.current) return;
@@ -61,29 +66,30 @@ export default function BattlePage({
     };
   }, []);
   useEffect(() => {
-    const paused = !!menu || !!choices || !!contracts || helpOpen;
+    const paused = !!menu || !!choices || !!contracts || helpOpen || tutorial;
     if (paused) input.current.clear();
     engine.current?.setPaused(paused);
-  }, [menu, choices, contracts, helpOpen]);
+  }, [menu, choices, contracts, helpOpen, tutorial]);
   useEffect(() => {
     engine.current?.setAudioEnabled(prefs.sound);
     engine.current?.setScreenShake(prefs.shake);
+    engine.current?.setHaptics(prefs.haptics);
     try {
       savePreferences(prefs);
     } catch {}
   }, [prefs]);
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
-      if (e.code !== 'Escape' || helpOpen || choices) return;
+      if (e.code !== 'Escape' || helpOpen || choices || tutorial) return;
       e.preventDefault();
       if (contracts) {
         engine.current?.closeContract();
         setContracts(null);
-      } else setMenu((v) => (v ? null : 'pause'));
+      } else setMenu((v) => (v === 'exit' ? 'pause' : v ? null : 'pause'));
     };
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
-  }, [helpOpen, choices, contracts]);
+  }, [helpOpen, choices, contracts, tutorial]);
   useEffect(() => {
     const fn = () => {
       if (document.hidden) setMenu('pause');
@@ -177,7 +183,7 @@ export default function BattlePage({
           }}
         />
       )}
-      {menu && !choices && !contracts && (
+      {menu && !choices && !contracts && !tutorial && (
         <BattleMenu
           menu={menu}
           profile={profile}
@@ -187,6 +193,22 @@ export default function BattlePage({
           setPrefs={setPrefs}
           audioToggle={audioToggle}
           onHelp={onHelp}
+          onTutorial={() => {
+            setMenu(null);
+            setTutorial(true);
+          }}
+          onExit={() => {
+            engine.current?.destroy();
+            onExit();
+          }}
+        />
+      )}
+      {tutorial && (
+        <TutorialDialog
+          onClose={() => {
+            completeTutorial();
+            setTutorial(false);
+          }}
         />
       )}
     </main>

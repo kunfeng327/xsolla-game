@@ -2,6 +2,7 @@ import { palette } from '../../config/palette';
 import { clamp } from '../../shared/math';
 import { CombatAudio } from '../audio/CombatAudio';
 import * as boss from '../combat/boss';
+import { ImpactFeedback } from '../combat/ImpactFeedback';
 import * as damage from '../combat/damage';
 import * as enemies from '../combat/enemies';
 import * as player from '../combat/player';
@@ -130,6 +131,7 @@ export class GameSession {
   objectiveManual = false;
   audio: CombatAudio;
   shakeEnabled = true;
+  impact = new ImpactFeedback();
   sprites = new Map<string, HTMLImageElement>();
   pending: PendingEnemy[] = [];
   deaths: DeathEffect[] = [];
@@ -215,6 +217,7 @@ export class GameSession {
     this.destroyed = true;
     cancelAnimationFrame(this.raf);
     this.audio.destroy();
+    this.impact.stop();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointerdown', this.pointerDown);
     window.removeEventListener('keydown', this.keyDown);
@@ -223,6 +226,7 @@ export class GameSession {
   }
   setPaused(value: boolean) {
     this.paused = value;
+    if (value) this.impact.stop();
     this.blur();
     this.last = performance.now();
   }
@@ -246,6 +250,9 @@ export class GameSession {
   }
   setScreenShake(enabled: boolean) {
     this.shakeEnabled = enabled;
+  }
+  setHaptics(enabled: boolean) {
+    this.impact.setEnabled(enabled);
   }
   resize() {
     const b = this.canvas.getBoundingClientRect();

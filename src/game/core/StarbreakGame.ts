@@ -31,6 +31,9 @@ export class StarbreakGame {
   setAudioVolume(volume: number): void {
     return this.session.setAudioVolume(volume);
   }
+  setHaptics(enabled: boolean): void {
+    this.session.setHaptics(enabled);
+  }
   setScreenShake(enabled: boolean): void {
     return this.session.setScreenShake(enabled);
   }

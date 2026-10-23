@@ -1,4 +1,14 @@
-import { Backpack, HelpCircle, Hexagon, Play, Settings2, Sparkles, X } from 'lucide-react';
+import {
+  Backpack,
+  HelpCircle,
+  Hexagon,
+  LogOut,
+  Radio,
+  Play,
+  Settings2,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import type { Dispatch, SetStateAction } from 'react';
 import { MODULES } from '../../config/catalog';
 import type { GameHud } from '../../game/types';
@@ -15,6 +25,8 @@ interface MenuProps {
   setPrefs: Dispatch<SetStateAction<Preferences>>;
   audioToggle: () => void;
   onHelp: () => void;
+  onExit: () => void;
+  onTutorial: () => void;
 }
 export default function BattleMenu({
   menu,
@@ -25,6 +37,8 @@ export default function BattleMenu({
   setPrefs,
   audioToggle,
   onHelp,
+  onExit,
+  onTutorial,
 }: MenuProps) {
   const h = hud;
   return (
@@ -34,25 +48,44 @@ export default function BattleMenu({
         role="dialog"
         aria-modal="true"
         aria-label={
-          menu === 'settings' ? '界面与反馈设置' : menu === 'effects' ? '本局状态详情' : '行动暂停'
+          menu === 'exit'
+            ? '退出本局确认'
+            : menu === 'settings'
+              ? '界面与反馈设置'
+              : menu === 'effects'
+                ? '本局状态详情'
+                : '行动暂停'
         }
       >
         <button
           className="icon-btn dialog-close"
-          onClick={() => setMenu(null)}
+          onClick={() => setMenu(menu === 'exit' ? 'pause' : null)}
           aria-label="返回战场"
         >
           <X size={20} />
         </button>
         <div className="eyebrow">战场已暂停</div>
         <h2>
-          {menu === 'settings'
-            ? '界面与反馈'
-            : menu === 'effects'
-              ? '本局状态'
-              : '休息一下，随时再出发。'}
+          {menu === 'exit'
+            ? '结束本次行动？'
+            : menu === 'settings'
+              ? '界面与反馈'
+              : menu === 'effects'
+                ? '本局状态'
+                : '休息一下，随时再出发。'}
         </h2>
-        {menu === 'settings' ? (
+        {menu === 'exit' ? (
+          <>
+            <p className="muted">
+              退出后返回营地，本局尚未带出的合金、芯片与核心不会入库。已解锁的装备、模块与营地进度保留。
+            </p>
+            <p className="notice">想带回战利品？返回战场，前往接应站主动撤离。</p>
+            <button className="danger-button full" onClick={onExit}>
+              <LogOut size={18} />
+              确认退出，返回营地
+            </button>
+          </>
+        ) : menu === 'settings' ? (
           <>
             <div className="field-setting">
               <span>界面大小</span>
@@ -80,6 +113,15 @@ export default function BattleMenu({
                 onChange={(e) => setPrefs((p) => ({ ...p, shake: e.target.checked }))}
               />
             </label>
+            <label className="field-setting">
+              <span>命中设备震动</span>
+              <input
+                type="checkbox"
+                checked={prefs.haptics}
+                onChange={(e) => setPrefs((p) => ({ ...p, haptics: e.target.checked }))}
+              />
+            </label>
+            <p className="muted">命中触发短促震屏，设备震动需浏览器和硬件支持。</p>
             <p className="muted">音效在首次按键或点击后启用。所有偏好保存在当前浏览器。</p>
           </>
         ) : menu === 'effects' ? (
@@ -140,6 +182,14 @@ export default function BattleMenu({
             <button className="secondary full" onClick={() => setMenu('settings')}>
               <Settings2 size={18} />
               界面与反馈设置
+            </button>
+            <button className="secondary full" onClick={onTutorial}>
+              <Radio size={18} />
+              重看新手简报
+            </button>
+            <button className="secondary full" onClick={() => setMenu('exit')}>
+              <LogOut size={18} />
+              退出本局，返回营地
             </button>
             <button className="secondary full" onClick={onHelp}>
               <HelpCircle size={18} />

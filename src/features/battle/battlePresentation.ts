@@ -12,7 +12,7 @@ import {
   Wind,
 } from 'lucide-react';
 export type Goal = 'resource' | 'boss' | 'extract' | 'terminal';
-export type Menu = 'pause' | 'settings' | 'effects' | null;
+export type Menu = 'pause' | 'settings' | 'effects' | 'exit' | null;
 export const clock = (t: number) =>
   Math.floor(t / 60)
     .toString()

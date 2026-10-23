@@ -9,6 +9,8 @@ export function hitEnemy(this: GameSession, e: Enemy, amount: number): void {
   e.hp -= amount;
   e.hit = 0.12;
   this.audio.play('hit');
+  this.shake = Math.max(this.shake, e.type === 'boss' ? 2.2 : 1.4);
+  this.impact.hit(e.type === 'boss', e.hp <= 0);
   if (e.type !== 'boss' && !wasHit) {
     const d = Math.max(1, distance(e, this.player));
     this.moveEntity(e, ((e.x - this.player.x) / d) * 7, ((e.y - this.player.y) / d) * 7, e.r);
