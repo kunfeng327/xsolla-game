@@ -16,6 +16,7 @@ import { initialProfile } from '../profile/initialProfile';
 import { createRunLoadout, toggleModule } from '../profile/loadout';
 import { applySettlement } from '../profile/settlement';
 import type { ModuleId, Profile, RecipeId } from '../profile/types';
+import { resetTutorial } from '../storage/tutorialStorage';
 import { loadProfile, saveProfile } from '../storage/profileStorage';
 export default function App() {
   const [profile, setProfile] = useState<Profile>(loadProfile);
@@ -133,6 +134,11 @@ export default function App() {
             key={runId}
             profile={runProfile}
             onFinish={finish}
+            onExit={() => {
+              finished.current = true;
+              setScreen('camp');
+              window.scrollTo(0, 0);
+            }}
             onHelp={() => setHelp(true)}
             helpOpen={help}
           />
@@ -170,6 +176,7 @@ export default function App() {
                 className="danger-button"
                 onClick={() => {
                   setProfile(initialProfile());
+                  resetTutorial();
                   setResetOpen(false);
                   setToast('存档已重置，准备新的行动。');
                 }}

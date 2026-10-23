@@ -1,4 +1,4 @@
-import { Backpack, CircleHelp, Crosshair, Target, Wrench } from 'lucide-react';
+import { Backpack, CircleHelp, Crosshair, Target, ShoppingBag } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 import { useState } from 'react';
 import { backpackCost, getTrackedGoal } from '../../profile/growth';
@@ -70,7 +70,7 @@ export default function Camp(props: CampProps) {
             [
               { id: 'action', label: '行动', Icon: Target },
               { id: 'equipment', label: '装备', Icon: Backpack },
-              { id: 'workshop', label: '工坊', Icon: Wrench },
+              { id: 'workshop', label: '商城', Icon: ShoppingBag },
             ] as const
           ).map(({ id, label, Icon }) => (
             <button

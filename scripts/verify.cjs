@@ -1690,7 +1690,7 @@ test('actual Battle HUD exposes effect details, scalable settings, mute toggle a
   const h = componentHarness(
     'features/battle/BattlePage.tsx',
     { profile, onFinish() {}, onHelp() {}, helpOpen: false },
-    { 0: hud },
+    { 0: hud, 8: false },
   );
   assert(h.find((n) => n.props.className === 'field-buff buff-overcharge'));
   assert(h.find((n) => n.type === 'span' && n.props.className === 'spent'));
@@ -1940,7 +1940,7 @@ test('touch directions do not survive pause or blur and client listeners clean u
   const h = componentHarness(
     'features/battle/BattlePage.tsx',
     { profile: m.initialProfile(), onFinish() {}, onHelp() {}, helpOpen: false },
-    {},
+    { 8: false },
     { window: events(windowListeners), document: { hidden: false, ...events(documentListeners) } },
   );
   h.refs[1].current = {
@@ -1948,6 +1948,7 @@ test('touch directions do not survive pause or blur and client listeners clean u
     setInput: (x, y) => inputs.push([x, y]),
     setAudioEnabled() {},
     setScreenShake() {},
+    setHaptics() {},
   };
   h.flushEffects();
   const press = (direction) =>
@@ -1981,6 +1982,249 @@ test('touch directions do not survive pause or blur and client listeners clean u
   h.unmount();
   assert.equal(windowListeners.size, 0);
   assert.equal(documentListeners.size, 0);
+});
+
+test('impact feedback pulses on real hits and rate-limits pellets in wall-clock time', () => {
+  let now = 0;
+  const pulses = [];
+  const rt = runtime(null, 42, {
+    performance: { now: () => now },
+    navigator: { vibrate: (pattern) => pulses.push(plain(pattern)) },
+  });
+  const Feedback = rt.load('game/combat/ImpactFeedback').ImpactFeedback;
+  const feedback = new Feedback();
+  feedback.hit(false, false);
+  feedback.hit(false, true);
+  assert.deepEqual(pulses, [10]);
+  now = 90;
+  feedback.hit(false, true);
+  now = 180;
+  feedback.hit(true, true);
+  assert.deepEqual(pulses, [10, 22, [25, 25, 40]]);
+  feedback.setEnabled(false);
+  now = 300;
+  feedback.hit(false, false);
+  assert.deepEqual(pulses, [10, 22, [25, 25, 40], 0]);
+  feedback.setEnabled(true);
+  feedback.hit(true, false);
+  assert.equal(pulses.at(-1), 16);
+});
+test('haptics degrade safely without browser support or with a denied device', () => {
+  for (const navigator of [
+    undefined,
+    {},
+    {
+      vibrate() {
+        throw new Error('denied');
+      },
+    },
+  ]) {
+    const Feedback = runtime(null, 42, { navigator }).load(
+      'game/combat/ImpactFeedback',
+    ).ImpactFeedback;
+    const feedback = new Feedback();
+    feedback.hit(false, false);
+    feedback.stop();
+    feedback.setEnabled(false);
+  }
+});
+test('surviving enemy hits shake the camera while invulnerable and dead targets do not pulse', () => {
+  const { game: g } = battle();
+  const enemy = g.spawnEnemy('normal', { x: 150, y: 0 });
+  enemy.hp = 100;
+  enemy.mode = 'chase';
+  let hits = 0;
+  g.impact.hit = () => hits++;
+  g.shake = 0;
+  g.hitEnemy(enemy, 1);
+  assert.equal(hits, 1);
+  assert(g.shake > 0);
+  enemy.mode = 'telegraph';
+  g.shake = 0;
+  g.hitEnemy(enemy, 1);
+  assert.equal(hits, 1);
+  assert.equal(g.shake, 0);
+  enemy.mode = '';
+  enemy.hp = 0;
+  g.hitEnemy(enemy, 1);
+  assert.equal(hits, 1);
+});
+test('feedback preferences migrate old saves and preserve explicit shake settings over motion defaults', () => {
+  const window = { matchMedia: () => ({ matches: true }) };
+  const fresh = runtime(null, 42, { window }).load('storage/battlePreferences').loadPreferences();
+  assert.equal(fresh.shake, false);
+  assert.equal(fresh.haptics, true);
+  const old = runtime(JSON.stringify({ scale: 125, sound: false, shake: true }), 42, { window })
+    .load('storage/battlePreferences')
+    .loadPreferences();
+  assert.equal(old.scale, 125);
+  assert.equal(old.sound, false);
+  assert.equal(old.shake, true);
+  assert.equal(old.haptics, true);
+  const saved = runtime(JSON.stringify({ shake: false, haptics: false }), 42)
+    .load('storage/battlePreferences')
+    .loadPreferences();
+  assert.equal(saved.shake, false);
+  assert.equal(saved.haptics, false);
+  const denied = runtime(null, 42, {
+    window,
+    localStorage: {
+      getItem() {
+        throw Error();
+      },
+    },
+  })
+    .load('storage/battlePreferences')
+    .loadPreferences();
+  assert.equal(denied.shake, false);
+});
+test('tutorial completion persists, reset restores it, and unavailable storage remains safe', () => {
+  const data = new Map();
+  const storage = runtime(null, 42, {
+    localStorage: {
+      getItem: (key) => data.get(key),
+      setItem: (key, value) => data.set(key, value),
+      removeItem: (key) => data.delete(key),
+    },
+  }).load('storage/tutorialStorage');
+  assert(storage.needsTutorial());
+  storage.completeTutorial();
+  assert.equal(storage.needsTutorial(), false);
+  storage.resetTutorial();
+  assert(storage.needsTutorial());
+  const denied = runtime(null, 42, {
+    localStorage: {
+      getItem() {
+        throw Error();
+      },
+      setItem() {
+        throw Error();
+      },
+      removeItem() {
+        throw Error();
+      },
+    },
+  }).load('storage/tutorialStorage');
+  denied.completeTutorial();
+  denied.resetTutorial();
+  assert(denied.needsTutorial());
+});
+test('story briefing can advance, go back, finish or skip without changing profile', () => {
+  let closed = 0;
+  const h = componentHarness('features/tutorial/TutorialDialog.tsx', { onClose: () => closed++ });
+  const button = (text) => h.find((n) => n.type === 'button' && h.text(n).includes(text));
+  assert(h.text(h.find((n) => n.type === 'h2')).includes('07号营地'));
+  assert(button('上一步').props.disabled);
+  button('继续通讯').props.onClick();
+  h.render();
+  assert(h.text(h.find((n) => n.type === 'h2')).includes('保持移动'));
+  button('上一步').props.onClick();
+  h.render();
+  for (let i = 0; i < 4; i++) {
+    button('继续通讯').props.onClick();
+    h.render();
+  }
+  button('收到').props.onClick();
+  assert.equal(closed, 1);
+  h.find((n) => n.props['aria-label'] === '跳过新手引导').props.onClick();
+  assert.equal(closed, 2);
+});
+test('exit confirmation pauses battle, cancel resumes, confirm destroys without settlement', () => {
+  let exited = 0,
+    settled = 0,
+    destroyed = 0;
+  const pauses = [];
+  const h = componentHarness(
+    'features/battle/BattlePage.tsx',
+    {
+      profile: m.initialProfile(),
+      onFinish: () => settled++,
+      onExit: () => exited++,
+      onHelp() {},
+      helpOpen: false,
+    },
+    { 8: false },
+    { window: { addEventListener() {}, removeEventListener() {} } },
+  );
+  h.refs[1].current = {
+    setPaused: (v) => pauses.push(v),
+    setAudioEnabled() {},
+    setScreenShake() {},
+    setHaptics() {},
+    destroy: () => destroyed++,
+  };
+  h.flushEffects();
+  h.find((n) => n.props['aria-label'] === '退出本局').props.onClick();
+  h.render();
+  h.flushEffects();
+  assert.equal(pauses.at(-1), true);
+  assert(h.find((n) => n.props['aria-label'] === '退出本局确认'));
+  h.find((n) => n.type === 'button' && h.text(n) === '返回战场').props.onClick();
+  h.render();
+  h.flushEffects();
+  assert.equal(pauses.at(-1), false);
+  assert.equal(exited, 0);
+  h.find((n) => n.props['aria-label'] === '退出本局').props.onClick();
+  h.render();
+  h.flushEffects();
+  h.find((n) => n.type === 'button' && h.text(n).includes('确认退出')).props.onClick();
+  assert.equal(exited, 1);
+  assert.equal(destroyed, 1);
+  assert.equal(settled, 0);
+});
+test('shop categories filter actual inventory and unaffordable purchases remain disabled', () => {
+  let bought = 0,
+    tracked;
+  const h = componentHarness('features/camp/WorkshopPanel.tsx', {
+    profile: m.initialProfile(),
+    onBuy: () => bought++,
+    tab: 'workshop',
+    setTab() {},
+    track: (id) => (tracked = id),
+  });
+  assert.equal(h.all().filter((n) => n.type === 'article').length, 6);
+  h.find((n) => n.type === 'button' && h.text(n).includes('武器军械')).props.onClick();
+  h.render();
+  assert.equal(h.all().filter((n) => n.type === 'article').length, 2);
+  h.find((n) => n.props['aria-label'] === '查看散射枪详情').props.onClick();
+  h.render();
+  const confirm = h.find((n) => n.type === 'button' && h.text(n).includes('确认兑换'));
+  assert(confirm.props.disabled);
+  assert.equal(bought, 0);
+  h.find((n) => n.type === 'button' && h.text(n).includes('设为搜集目标')).props.onClick();
+  assert.equal(tracked, 'scatter');
+});
+test('shop confirms a funded exchange and shows purchased ownership', () => {
+  const p = rich();
+  let bought;
+  const props = {
+    profile: p,
+    onBuy: (id) => {
+      bought = id;
+      props.profile = m.purchase(props.profile, id);
+    },
+    tab: 'workshop',
+    setTab() {},
+    track() {},
+  };
+  const h = componentHarness('features/camp/WorkshopPanel.tsx', props);
+  h.find((n) => n.props['aria-label'] === '查看散射枪详情').props.onClick();
+  h.render();
+  const confirm = h.find((n) => n.type === 'button' && h.text(n).includes('确认兑换'));
+  assert.equal(confirm.props.disabled, false);
+  confirm.props.onClick();
+  h.render();
+  assert.equal(bought, 'scatter');
+  assert.equal(props.profile.alloy, p.alloy - 40);
+  assert.equal(props.profile.chips, p.chips - 2);
+  assert(props.profile.weapons.includes('scatter'));
+  h.find((n) => n.props['aria-label'] === '查看散射枪详情').props.onClick();
+  h.render();
+  assert(h.find((n) => n.type === 'p' && h.text(n).includes('已拥有')));
+  assert.equal(
+    h.find((n) => n.type === 'button' && h.text(n).includes('确认兑换')),
+    undefined,
+  );
 });
 
 const balance = [];

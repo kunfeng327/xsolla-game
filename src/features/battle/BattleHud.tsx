@@ -13,6 +13,7 @@ import {
   Hexagon,
   Info,
   Layers,
+  LogOut,
   Maximize2,
   Package,
   Pause,
@@ -107,6 +108,14 @@ export default function BattleHud({
           </div>
         </section>
         <div className="field-actions">
+          <button
+            className="field-icon-button"
+            aria-label="退出本局"
+            title="退出本局，返回营地"
+            onClick={() => setMenu('exit')}
+          >
+            <LogOut size={20} />
+          </button>
           <button
             className="field-icon-button"
             aria-label={prefs.sound ? '关闭音效' : '开启音效'}

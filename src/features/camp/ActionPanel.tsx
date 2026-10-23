@@ -203,7 +203,7 @@ export default function ActionPanel({
               ))}
           </div>
           <p className={`camp-missing ${goal.canAfford ? 'is-ready' : ''}`}>
-            {goal.complete ? '到工坊选择下一个目标' : missing(profile, goal.cost)}
+            {goal.complete ? '到商城选择下一个目标' : missing(profile, goal.cost)}
           </p>
           {goal.canAfford && (
             <button className="camp-goal-redeem" onClick={redeemGoal}>
