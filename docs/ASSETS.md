@@ -43,7 +43,7 @@
 
 另附 `playerIdle`、`playerReload`、`engineerIdle`、`normalIdle`、`shooterIdle` 原始静态姿势。该素材包不是完整的角色行走动画；移动摇摆、命中形变与死亡表现由本项目代码实现。
 
-`src/art.ts` 将所选 PNG 编码为 data URL，导出 `ART` 与 `SPRITE_ANGLE = 0`。角色原图朝向屏幕右方（+X），渲染时可直接按瞄准角旋转。素材不依赖远程 CDN，仍可生成单文件离线 HTML。原 PNG 总计约 24 KB，内嵌模块约 33 KB。
+`src/game/rendering/sprites.ts` 使用本地 PNG 的 `?inline` 导入，导出 `ART` 与 `SPRITE_ANGLE = 0`。Vite 在开发与构建时生成 data URL，源码不再手工保存图片 Base64。角色原图朝向屏幕右方（+X），渲染时可直接按瞄准角旋转。素材不依赖远程 CDN，仍可生成单文件离线 HTML。
 
 这些 PNG 用于游戏内部展示。营地已采用独立生成的机库背景插画，其来源与生成说明见 [V3_ART_PROMPTS.md](V3_ART_PROMPTS.md)，不属于 Kenney 的 CC0 文件清单。
 

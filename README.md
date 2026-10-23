@@ -185,30 +185,40 @@ npm run dev
 
 ## 技术与代码结构
 
-React 19 负责营地、HUD、升级／契约弹层和结算；TypeScript 编写玩法与数据规则；Canvas 2D 更新和绘制战场，通过回调与 React 同步。营地干员采用 SVG，机库使用内嵌背景图，战场精灵与界面装饰分别由 Canvas 和 CSS 绘制；图标使用 `lucide-react`。音效由 Web Audio 合成，进度与界面偏好保存在浏览器 `localStorage`。当前没有 Go 游戏服务端或实时多人同步，也未接通真实支付。
+React 19 负责营地、HUD、升级／契约弹层和结算；TypeScript 编写玩法与数据规则；Canvas 2D 更新和绘制战场，通过回调与 React 同步。营地干员采用 SVG，机库使用本地背景图（构建时内嵌），战场精灵与界面装饰分别由 Canvas 和 CSS 绘制；图标使用 `lucide-react`。音效由 Web Audio 合成，进度与界面偏好保存在浏览器 `localStorage`。当前没有 Go 游戏服务端或实时多人同步，也未接通真实支付。
 
 ```text
 starbreak-game/
 ├── src/
-│   ├── App.tsx            # 页面流程、指南、结算与存档
-│   ├── BattleV2.tsx       # 当前战斗 HUD、状态与设置
-│   ├── game.ts            # 战斗、探索、遭遇、掉落与撤离
-│   ├── world.ts           # 可复用地图地块与设施
-│   ├── model.ts           # 材料、模块、配方、追踪目标与本地存档
-│   ├── Camp.tsx           # 行动、装备、工坊与机库干员
-│   ├── audio.ts           # 可关闭的 Web Audio 合成音效
-│   ├── art.ts             # 内嵌战场精灵
-│   ├── hangar.ts          # 内嵌机库背景
-│   ├── camp.css
-│   ├── battle-v3.css
-│   ├── styles.css
-│   └── main.tsx
-├── demo/starbreak-play.html # 单文件试玩快照
-├── docs/                   # 图片、素材说明与开发路线
+│   ├── app/                  # 应用入口、页面组织与全局样式
+│   ├── features/             # React 页面与组件
+│   │   ├── camp/             # 行动、装备、工坊
+│   │   ├── battle/           # Canvas 接入、HUD、升级/契约/暂停弹窗
+│   │   ├── settlement/       # 结算页面
+│   │   └── help/             # 操作指南
+│   ├── game/                 # 单局运行与玩法规则
+│   │   ├── core/             # 生命周期、状态、更新顺序与公开入口
+│   │   ├── combat/           # 玩家、武器、敌人、Boss、伤害和弹丸
+│   │   ├── world/            # 地块、碰撞、探索与资源事件
+│   │   ├── progression/      # 升级、契约、补给和局内效果
+│   │   ├── extraction/       # 撤离与结束条件
+│   │   ├── rendering/        # 世界、角色、导航和效果绘制
+│   │   └── audio/            # 合成音效
+│   ├── profile/              # 永久成长、装配、结算与类型
+│   ├── storage/              # 本地存档与偏好兼容
+│   ├── config/               # 模块、配方、升级和契约选项
+│   ├── shared/               # 共用组件和工具
+│   ├── assets/               # 本地图片和许可文件
+│   └── main.tsx              # 浏览器入口
+├── scripts/                  # 规则验证与离线打包
+├── demo/starbreak-play.html  # 单文件试玩快照
+├── docs/                     # 源码导航、素材说明与开发路线
 ├── package-lock.json
 ├── package.json
 └── vite.config.ts
 ```
+
+按功能查代码、模块边界和数据流见 [源码导航](docs/ARCHITECTURE.md)。运行 `npm run format` 整理代码格式，`npm run format:check` 检查格式。
 
 ## 存档与验证边界
 
