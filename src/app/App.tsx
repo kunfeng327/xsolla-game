@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import './visual-refresh.css';
 import { useEffect, useRef, useState } from 'react';
 import Battle from '../features/battle/BattlePage';
 import Camp from '../features/camp/Camp';
