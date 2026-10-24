@@ -86,3 +86,18 @@
   .camp-header { background: #101722e8; }
   .camp-main { padding-bottom: 18px; }
 }
+
+/* Anime character illustration treatment */
+.camp-v3 .anime-operative {
+  filter: drop-shadow(0 12px 24px #080f1b70) saturate(.88);
+  overflow: visible;
+}
+.camp-v3 .anime-operative .camp-operator-body {
+  transform-origin: 260px 330px;
+}
+.camp-v3 .camp-scene {
+  background-color: #182534;
+}
+.camp-v3 .camp-operative {
+  opacity: .98;
+}
