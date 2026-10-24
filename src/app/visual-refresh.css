@@ -1,0 +1,88 @@
+/* STARBREAK muted anime refresh — visual-only overrides */
+:root {
+  --cyan: #9bcbd0;
+  --muted: #a0afbd;
+  --line: #3b4b5b;
+  --amber: #e8b77d;
+  --purple: #b9a7d9;
+}
+.camp-v3 {
+  --camp-cyan: #9bcbd0;
+  --camp-amber: #e8b77d;
+  --camp-purple: #b9a7d9;
+  --camp-muted: #a0afbd;
+  background: radial-gradient(ellipse at 48% 14%, #34485a55, transparent 62%), #101722;
+  color: #e1e7ed;
+}
+.camp-header { border-bottom-color: #b7c7d015; }
+.camp-brand-mark { color: #a7cbd0; border-color: #9bcbd044; background: #9bcbd00b; }
+.camp-nav button[aria-selected='true'] { color: #f1d1a7; border-color: #e8b77d; background: linear-gradient(0deg,#e8b77d12,transparent 80%); }
+.camp-home-grid { gap: 16px; }
+.camp-loadout-summary, .camp-mission-card, .camp-recipe, .camp-module,
+.camp-pack-panel, .camp-workshop-shortcuts > button, .camp-character-option,
+.camp-weapon-option, .camp-goal-card, .camp-capacity-panel {
+  background: linear-gradient(145deg, #202d3b, #17222f) !important;
+  border-color: #65788a55 !important;
+  border-radius: 5px !important;
+  box-shadow: 0 10px 28px #050b1420;
+}
+.camp-recipe { position: relative; overflow: hidden; }
+.camp-recipe::before, .camp-module::before {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 2px;
+  background: #8fb9c2; opacity: .6;
+}
+.camp-recipe.is-tracked { border-color: #d8b17b99 !important; background: linear-gradient(145deg,#33313a,#202a37) !important; }
+.camp-recipe.is-tracked::before { background: #e8b77d; opacity: .95; }
+.camp-recipe-head > span, .camp-module-icon, .camp-reward-preview {
+  filter: saturate(.78);
+}
+.camp-buy, .camp-equip-button, .camp-outline-button, .camp-launch-button {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+.camp-v3 .camp-buy { background: #d6ad7a; border-color: #efd0a4; color: #252b34; }
+.camp-v3 .camp-buy:hover:not(:disabled) { background: #e8c397; }
+.camp-v3 .camp-buy:disabled { background: #35404c; color: #82909c; border-color: #4b5865; }
+.camp-scene { filter: saturate(.83); }
+.camp-scene::after { background: linear-gradient(90deg,#10172222,#10172208 45%,#101722aa) !important; }
+.camp-section-heading h1, .camp-scene-title h1 { letter-spacing: -.025em; }
+.camp-section-heading p, .camp-recipe > p { color: #aab7c3; }
+.camp-footer { color: #8293a2; }
+.camp-nav button, .camp-help, .camp-outline-button { transition: background .18s,border-color .18s,color .18s; }
+.camp-nav button:hover, .camp-help:hover, .camp-outline-button:hover { background-color: #a6c1d00b; }
+.field-shell {
+  --field-cyan: #9bcbd0;
+  --field-amber: #e8b77d;
+  --field-purple: #b9a7d9;
+  color: #e2e8ee;
+}
+.field-shell::before { opacity: .45; }
+.field-choice-grid > button, .field-contract-choice, .field-menu, .field-vitals,
+.field-loot, .field-threat, .field-navigation, .field-boss, .field-goals,
+.field-supplies, .field-status-zone {
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px #050b1433;
+}
+.field-choice-grid > button { border-radius: 5px !important; }
+.field-choice-grid > button:hover { transform: translateY(-2px); }
+.field-contract-choice { border-radius: 5px !important; }
+.field-menu { border-radius: 6px !important; background: #172330ed !important; }
+.field-menu button, .field-setting button { border-radius: 4px !important; }
+.result-screen {
+  background: radial-gradient(ellipse at 50% 12%, #34485a55, transparent 60%), #101722 !important;
+  color: #e2e8ee;
+}
+.result-emblem.success { color: #a7cbd0; border-color: #9bcbd077; background: #9bcbd012; }
+.result-emblem.failed { filter: saturate(.7); }
+.settlement-panel, .goal-result {
+  background: linear-gradient(145deg,#202d3b,#17222f) !important;
+  border-color: #65788a55 !important;
+  border-radius: 5px !important;
+}
+.result-buttons .primary { background: #d6ad7a; color: #252b34; border-color: #efd0a4; }
+.result-buttons .primary:hover { background: #e8c397; }
+.toast { backdrop-filter: blur(12px); }
+@media (max-width: 800px) {
+  .camp-header { background: #101722e8; }
+  .camp-main { padding-bottom: 18px; }
+}
